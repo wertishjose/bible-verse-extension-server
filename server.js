@@ -5,7 +5,7 @@ const express = require('express');
 const cors = require('cors');
 const twilio = require('twilio');
 
-const E164_PHONE = /^\\+[1-9]\\d{7,14}$/;
+const E164_PHONE = /^\+[1-9]\d{7,14}$/;
 
 function requiredEnv(name, env = process.env) {
   const value = env[name];
@@ -132,7 +132,7 @@ function validateSendRequest(body) {
     throw new Error('Phone number must be a string');
   }
 
-  const verse = body.verse.trim().replace(/\\s+/g, ' ');
+  const verse = body.verse.trim().replace(/\s+/g, ' ');
   const phoneNumber = body.phoneNumber.trim();
 
   if (verse.length === 0 || verse.length > 600) {

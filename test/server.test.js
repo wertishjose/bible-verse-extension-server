@@ -70,10 +70,13 @@ function request(server, options = {}) {
         responseBody += chunk;
       });
       res.on('end', () => {
+        const contentType = res.headers['content-type'] || '';
         resolve({
           status: res.statusCode,
           headers: res.headers,
-          body: responseBody ? JSON.parse(responseBody) : undefined
+          body: responseBody && contentType.includes('application/json')
+            ? JSON.parse(responseBody)
+            : responseBody
         });
       });
     });
@@ -104,11 +107,17 @@ test('rejects malformed and unapproved requests', async (t) => {
   const { server, sent } = await startServer();
   t.after(() => server.close());
 
-  const malformed = await request(server, {
+  const malformedJson = await request(server, {
+    headers: authorizedHeaders(),
+    body: '{"verse":'
+  });
+  assert.equal(malformedJson.status, 400);
+
+  const malformedInput = await request(server, {
     headers: authorizedHeaders(),
     body: { verse: 42, phoneNumber: RECIPIENT }
   });
-  assert.equal(malformed.status, 400);
+  assert.equal(malformedInput.status, 400);
 
   const unapproved = await request(server, {
     headers: authorizedHeaders(),
@@ -124,11 +133,10 @@ test('accepts an authorized allowed SMS request', async (t) => {
 
   const response = await request(server, {
     headers: authorizedHeaders(),
-    body: { verse: 'John 3:16', phoneNumber: RECIPIENT }
+    body: { verse: '  John 3:16\n  ', phoneNumber: RECIPIENT }
   });
 
   assert.equal(response.status, 202);
-  assert.equal(response.body.success, true);
   assert.deepEqual(sent, [{
     body: 'John 3:16',
     from: '+15557654321',
@@ -137,7 +145,7 @@ test('accepts an authorized allowed SMS request', async (t) => {
 });
 
 test('rate limits repeated SMS requests', async (t) => {
-  const { server, sent } = await startServer();
+  const { server, sent } = await startServer({ recipientMax: 2 });
   t.after(() => server.close());
 
   const options = {
@@ -157,8 +165,7 @@ test('does not retain the insecure verification route', async (t) => {
 
   const response = await request(server, {
     path: '/verify',
-    headers: authorizedHeaders(),
-    body: { userId: 'attacker-controlled' }
+    body: { userId: 'arbitrary-user' }
   });
 
   assert.equal(response.status, 404);

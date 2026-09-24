@@ -1,0 +1,14 @@
+# Environment files and local secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies and generated output
+node_modules/
+dist/
+coverage/
+
+# Runtime and tooling artifacts
+*.log
+npm-debug.log*
+.DS_Store
